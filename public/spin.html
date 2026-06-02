@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>孙教-注册</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        ul.nav-menu {
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #333;
+        }
+        ul.nav-menu li { float: left; }
+        ul.nav-menu li a {
+            display: block;
+            color: white;
+            text-align: center;
+            padding: 14px 16px;
+            text-decoration: none;
+        }
+        ul.nav-menu li a:hover { background-color: #111; }
+        body { background: #f0f2f5; font-family: 'Segoe UI', sans-serif; }
+        .logo { text-align: center; margin: 20px 0; }
+        .logo img { max-width: 90%; height: auto; }
+        .reg-card {
+            max-width: 400px;
+            margin: 50px auto;
+            background: white;
+            padding: 30px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .reg-card h2 { text-align: center; margin-bottom: 20px; }
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .input-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover { background: #111; }
+        .msg {
+            text-align: center;
+            margin-top: 15px;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        .msg.error { background: #f8d7da; color: #721c24; }
+        .msg.success { background: #d4edda; color: #155724; }
+        .login-link { text-align: center; margin-top: 15px; }
+        .login-link a { color: #e67e22; text-decoration: none; }
+        footer { text-align: center; padding: 20px; color: #555; }
+    </style>
+</head>
+<body>
+<div class="logo"><img src="pngs/title.png" alt="孙教总部" width="500" height="100"></div>
+<div id="global-nav"></div>
+
+<div class="reg-card">
+    <h2>📝 注册新账号</h2>
+    <form id="registerForm">
+        <div class="input-group">
+            <label>用户名</label>
+            <input type="text" id="username" placeholder="请输入用户名" required autocomplete="username">
+        </div>
+        <div class="input-group">
+            <label>密码</label>
+            <input type="password" id="password" placeholder="请输入密码" required autocomplete="new-password">
+        </div>
+        <button type="submit">注册</button>
+        <div id="msg" class="msg"></div>
+    </form>
+    <div class="login-link">已有账号？ <a href="login.html">立即登录</a></div>
+</div>
+<footer>© 2025 孙(string)教 | 共产主义精神</footer>
+
+<script src="menu.js"></script>
+<script>
+    // 如果已经登录，直接跳转到个人主页
+    (async () => {
+        const res = await fetch('/api/me');
+        if (res.ok) {
+            window.location.href = 'profile.html';
+        }
+    })();
+
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+        const msgDiv = document.getElementById('msg');
+        if (!username || !password) {
+            msgDiv.className = 'msg error';
+            msgDiv.innerText = '用户名和密码不能为空';
+            return;
+        }
+        try {
+            const response = await fetch('/api/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await response.json();
+            if (data.success) {
+                msgDiv.className = 'msg success';
+                msgDiv.innerText = '注册成功，正在跳转...';
+                setTimeout(() => {
+                    window.location.href = 'profile.html';
+                }, 1000);
+            } else {
+                msgDiv.className = 'msg error';
+                msgDiv.innerText = data.error || '注册失败';
+            }
+        } catch (err) {
+            console.error(err);
+            msgDiv.className = 'msg error';
+            msgDiv.innerText = '网络错误，请稍后重试';
+        }
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>孙教-登录</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        ul.nav-menu { list-style:none; margin:0; padding:0; overflow:hidden; background:#333; }
+        ul.nav-menu li { float:left; }
+        ul.nav-menu li a { display:block; color:white; text-align:center; padding:14px 16px; text-decoration:none; }
+        ul.nav-menu li a:hover { background:#111; }
+        body { background:#f0f2f5; font-family:'Segoe UI',sans-serif; }
+        .logo { text-align:center; margin:20px 0; }
+        .logo img { max-width:90%; }
+        .login-card { max-width:400px; margin:50px auto; background:white; padding:30px; border:1px solid #ccc; }
+        .login-card h2 { text-align:center; margin-bottom:20px; }
+        .input-group { margin-bottom:15px; }
+        .input-group input { width:100%; padding:8px; border:1px solid #ccc; }
+        button { width:100%; padding:10px; background:#333; color:white; border:none; cursor:pointer; }
+        button:hover { background:#111; }
+        .msg { text-align:center; margin-top:15px; padding:8px; }
+        .msg.error { background:#f8d7da; color:#721c24; }
+        .msg.success { background:#d4edda; color:#155724; }
+        footer { text-align:center; padding:20px; color:#555; }
+    </style>
+</head>
+<body>
+<div class="logo"><img src="pngs/title.png" width="500"></div>
+<div id="global-nav"></div>
+<div class="login-card">
+    <h2>登录</h2>
+    <form id="loginForm">
+        <div class="input-group"><input type="text" id="username" placeholder="用户名" required></div>
+        <div class="input-group"><input type="password" id="password" placeholder="密码" required></div>
+        <button type="submit">登录</button>
+        <div id="msg" class="msg"></div>
+    </form>
+    <div style="text-align:center; margin-top:15px;"><a href="spin.html">注册</a></div>
+</div>
+<footer>© 孙教</footer>
+<script src="menu.js"></script>
+<script>
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+        const msg = document.getElementById('msg');
+        const res = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (data.success) {
+            msg.className = 'msg success';
+            msg.innerText = '登录成功';
+            setTimeout(() => window.location.href = 'profile.html', 800);
+        } else {
+            msg.className = 'msg error';
+            msg.innerText = data.error || '登录失败';
+        }
+    });
+    // 若已登录则跳转个人主页
+    fetch('/api/me').then(res => { if (res.ok) window.location.href = 'profile.html'; });
+</script>
+</body>
+</html>

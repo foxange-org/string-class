@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理面板</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        ul.nav-menu { list-style:none; margin:0; padding:0; overflow:hidden; background-color:#333; }
+        ul.nav-menu li { float:left; }
+        ul.nav-menu li a { display:block; color:white; text-align:center; padding:14px 16px; text-decoration:none; }
+        ul.nav-menu li a:hover { background-color:#111; }
+        body { background:#f0f2f5; font-family:'Segoe UI',sans-serif; }
+        .logo { text-align:center; margin:20px 0; }
+        .logo img { max-width:90%; }
+        .container { max-width:1200px; margin:30px auto; background:white; border:1px solid #ccc; padding:20px; border-radius:8px; }
+        .section { margin-bottom:30px; border-bottom:1px solid #ddd; padding-bottom:20px; }
+        table { width:100%; border-collapse:collapse; margin-top:10px; }
+        th, td { border:1px solid #ddd; padding:8px; text-align:left; }
+        th { background:#f2f2f2; }
+        input, select, button { padding:6px 10px; margin:5px; }
+        button { background:#333; color:white; border:none; cursor:pointer; }
+        button:hover { background:#111; }
+        .delete-btn { background:#c0392b; }
+        .delete-btn:hover { background:#a82313; }
+        footer { text-align:center; padding:20px; color:#555; }
+        .notice { background:#fff3cd; padding:10px; margin-bottom:15px; border-left:5px solid #ffc107; }
+    </style>
+</head>
+<body>
+<div class="logo"><img src="pngs/title.png" width="500" height="100"></div>
+<div id="global-nav"></div>
+<div class="container">
+    <h2>⚙️ 管理员控制台</h2>
+    <div class="notice">💡 兑换说明：用户申请兑换后，请在校区系统手动发放，然后点击“批准”。</div>
+    <div class="section">
+        <h3>📋 任务管理</h3>
+        <div id="tasksManager"></div>
+        <button onclick="addNewTask()">➕ 新增任务</button>
+    </div>
+    <div class="section">
+        <h3>💰 用户金币管理</h3>
+        <select id="userSelect"></select>
+        <input type="number" id="adjustCoin" placeholder="增减金币">
+        <button id="adjustCoinBtn">调整金币</button>
+    </div>
+    <div class="section">
+        <h3>💱 金币兑换申请</h3>
+        <div id="exchangeRequestsList"></div>
+    </div>
+</div>
+<footer>© 孙教管理面板</footer>
+<script src="menu.js"></script>
+<script>
+    let currentUserRole = null;
+    async function checkAdmin() {
+        const res = await fetch('/api/me');
+        if (!res.ok) { alert('请登录'); location.href='login.html'; return false; }
+        const user = await res.json();
+        if (user.role !== 'admin') { alert('无管理员权限'); location.href='index.html'; return false; }
+        currentUserRole = 'admin';
+        return true;
+    }
+    async function loadTasks() {
+        const res = await fetch('/api/admin/tasks');
+        const tasks = await res.json();
+        let html = '<tr><thead><tr><th>任务名</th><th>奖励</th><th>最大人数</th><th>已领取</th><th>截止日期</th><th>状态</th><th>操作</th><th>删除</th></tr></thead><tbody>';
+        tasks.forEach((t, idx) => {
+            html += `<tr>
+                <td><input type="text" id="title_${idx}" value="${escapeHtml(t.title)}"></td>
+                <td><input type="number" id="reward_${idx}" value="${t.reward}"></td>
+                <td><input type="number" id="max_${idx}" value="${t.maxParticipants}"></td>
+                <td>${t.currentParticipants}</td>
+                <td><input type="date" id="deadline_${idx}" value="${t.deadline}"></td>
+                <td><select id="active_${idx}"><option value="true" ${t.active?'selected':''}>启用</option><option value="false" ${!t.active?'selected':''}>禁用</option></select></td>
+                <td><button onclick="updateTask('${t.id}', ${idx})">保存</button></td>
+                <td><button class="delete-btn" onclick="deleteTask('${t.id}')">🗑️ 删除</button></td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+        document.getElementById('tasksManager').innerHTML = html;
+        window.taskIds = tasks.map(t => t.id);
+    }
+    window.updateTask = async (taskId, idx) => {
+        const title = document.getElementById(`title_${idx}`).value;
+        const reward = parseInt(document.getElementById(`reward_${idx}`).value);
+        const maxParticipants = parseInt(document.getElementById(`max_${idx}`).value);
+        const deadline = document.getElementById(`deadline_${idx}`).value;
+        const active = document.getElementById(`active_${idx}`).value === 'true';
+        const updates = { title, reward, maxParticipants, deadline, active };
+        const res = await fetch('/api/admin/update-task', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ taskId, updates })
+        });
+        if (res.ok) alert('更新成功');
+        else alert('更新失败');
+    };
+    window.deleteTask = async (taskId) => {
+        if (!confirm('删除任务会清除所有用户的接取记录，确定吗？')) return;
+        const res = await fetch('/api/admin/delete-task', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ taskId })
+        });
+        if (res.ok) { alert('已删除'); loadTasks(); loadUserSelect(); }
+        else alert('删除失败');
+    };
+    window.addNewTask = async () => {
+        const res = await fetch('/api/admin/add-task', { method: 'POST' });
+        if (res.ok) { alert('新增成功'); loadTasks(); }
+        else alert('新增失败');
+    };
+    async function loadUserSelect() {
+        const res = await fetch('/api/admin/users');
+        const users = await res.json();
+        const select = document.getElementById('userSelect');
+        select.innerHTML = '';
+        users.forEach(u => {
+            const opt = document.createElement('option');
+            opt.value = u.username;
+            opt.innerText = `${u.username} (${u.coins} 金币)`;
+            select.appendChild(opt);
+        });
+    }
+    document.getElementById('adjustCoinBtn').onclick = async () => {
+        const targetUsername = document.getElementById('userSelect').value;
+        const delta = parseInt(document.getElementById('adjustCoin').value);
+        if (isNaN(delta)) return alert('请输入数字');
+        const res = await fetch('/api/admin/adjust-coins', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ targetUsername, delta })
+        });
+        if (res.ok) alert('调整成功');
+        else alert('调整失败');
+        loadUserSelect();
+    };
+    async function loadExchangeRequests() {
+        const res = await fetch('/api/admin/exchange-requests');
+        const reqs = await res.json();
+        if (reqs.length === 0) {
+            document.getElementById('exchangeRequestsList').innerHTML = '<p>暂无兑换申请</p>';
+            return;
+        }
+        let html = '<table><thead><tr><th>用户</th><th>校区账号</th><th>网站金币</th><th>校区金币</th><th>申请时间</th><th>状态</th><th>操作</th></tr></thead><tbody>';
+        for (const r of reqs) {
+            html += `<tr>
+                <td>${r.username}</td>
+                <td>${r.account}</td>
+                <td>${r.webCoins}</td>
+                <td>${r.campusCoins}</td>
+                <td>${new Date(r.time).toLocaleString()}</td>
+                <td>${r.status === 'pending' ? '等待处理' : '已批准'}</td>
+                <td>${r.status === 'pending' ? `<button onclick="approveExchange(${r.id})">批准</button> <button onclick="rejectExchange(${r.id})">拒绝</button>` : '--'}</td>
+            </tr>`;
+        }
+        html += '</tbody></table>';
+        document.getElementById('exchangeRequestsList').innerHTML = html;
+    }
+    window.approveExchange = async (requestId) => {
+        const res = await fetch('/api/admin/approve-exchange', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ requestId })
+        });
+        if (res.ok) { alert('已批准，请手动在校区系统发放金币'); loadExchangeRequests(); }
+        else alert('操作失败');
+    };
+    window.rejectExchange = async (requestId) => {
+        const res = await fetch('/api/admin/reject-exchange', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ requestId })
+        });
+        if (res.ok) { alert('已拒绝，金币已退还'); loadExchangeRequests(); loadUserSelect(); }
+        else alert('操作失败');
+    };
+    function escapeHtml(str) { return str.replace(/[&<>]/g, m => m==='&'?'&amp;':m==='<'?'&lt;':'&gt;'); }
+    (async () => {
+        if (await checkAdmin()) {
+            loadTasks();
+            loadUserSelect();
+            loadExchangeRequests();
+        }
+    })();
+</script>
+</body>
+</html>

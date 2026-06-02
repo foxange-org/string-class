@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>孙教-个人主页</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        /* 样式与之前相同，省略重复，可参考此前版本 */
+        * { margin:0; padding:0; box-sizing:border-box; }
+        ul.nav-menu { list-style:none; margin:0; padding:0; overflow:hidden; background:#333; }
+        ul.nav-menu li { float:left; }
+        ul.nav-menu li a { display:block; color:white; text-align:center; padding:14px 16px; text-decoration:none; }
+        ul.nav-menu li a:hover { background:#111; }
+        body { background:#f0f2f5; font-family:'Segoe UI',sans-serif; }
+        .logo { text-align:center; margin:20px 0; }
+        .logo img { max-width:90%; }
+        .container { max-width:900px; margin:30px auto; background:white; border:1px solid #ccc; border-radius:8px; padding:20px; }
+        .section { margin-bottom:30px; border-bottom:1px solid #eee; padding-bottom:20px; }
+        h2 { margin-bottom:15px; border-left:5px solid #e67e22; padding-left:15px; }
+        h3 { margin:15px 0 10px; }
+        input, textarea, button { width:100%; padding:10px; margin:8px 0; border:1px solid #ccc; border-radius:4px; }
+        button { background:#333; color:white; border:none; cursor:pointer; }
+        button:hover { background:#111; }
+        .msg { margin-top:10px; padding:8px; border-radius:4px; }
+        .msg.success { background:#d4edda; color:#155724; }
+        .msg.error { background:#f8d7da; color:#721c24; }
+        .task-item { background:#f9f9f9; padding:10px; margin:10px 0; border-left:4px solid #e67e22; }
+        .preview-box { background:#fafafa; padding:15px; border:1px solid #ddd; margin-top:10px; }
+        footer { text-align:center; padding:20px; color:#555; }
+    </style>
+</head>
+<body>
+<div class="logo"><img src="pngs/title.png" width="500" height="100"></div>
+<div id="global-nav"></div>
+<div class="container">
+    <div class="section">
+        <h2>📋 个人信息</h2>
+        <div id="info"></div>
+    </div>
+    <div class="section">
+        <h2>✅ 我的任务</h2>
+        <div id="tasksList"></div>
+    </div>
+    <div class="section">
+        <h2>✏️ 个人主页</h2>
+        <textarea id="personalMdEditor" rows="8"></textarea>
+        <button id="savePersonalMd">💾 保存</button>
+        <div id="preview" class="preview-box"></div>
+    </div>
+    <div class="section">
+        <h2>💰 金币操作</h2>
+        <div><h3>🎁 赠送金币</h3><input id="giftTo" placeholder="对方用户名"><input id="giftAmount" type="number" placeholder="数量"><button id="giftBtn">赠送</button></div>
+        <div><h3>🔄 兑换校区金币</h3><p>10 网站金币 = 1 校区金币</p><input id="exchangeAccount" placeholder="校区账号"><input id="exchangeAmount" type="number" placeholder="数量(10的倍数)"><button id="exchangeBtn">申请兑换</button><div id="coinMsg" class="msg"></div></div>
+    </div>
+    <div class="section">
+        <h2>🔐 安全设置</h2>
+        <div><h3>修改密码</h3><input id="oldPwd" type="password" placeholder="原密码"><input id="newPwd" type="password" placeholder="新密码"><input id="confirmPwd" type="password" placeholder="确认密码"><button id="changePwdBtn">修改密码</button><div id="pwdMsg" class="msg"></div></div>
+        <div><h3>修改用户名</h3><input id="newUsername" placeholder="新用户名"><button id="changeUsernameBtn">修改用户名</button><div id="usernameMsg" class="msg"></div></div>
+    </div>
+</div>
+<footer>© 孙教</footer>
+<script src="menu.js"></script>
+<script>
+    async function apiCall(url, method, body) {
+        const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        return res.json();
+    }
+
+    async function loadProfile() {
+        const res = await fetch('/api/me');
+        if (!res.ok) { alert('请先登录'); location.href='login.html'; return; }
+        const user = await res.json();
+        document.getElementById('info').innerHTML = `
+            <p><strong>用户名:</strong> ${user.username}</p>
+            <p><strong>标签:</strong> ${user.tag || '无'}</p>
+            <p><strong>金币:</strong> ${user.coins}</p>
+            <p><strong>任务完成度:</strong> ${user.totalTasksCompleted}/${user.totalTasksAccepted} (${user.totalTasksAccepted? (user.totalTasksCompleted/user.totalTasksAccepted*100).toFixed(1):0}%)</p>
+        `;
+        // 任务列表
+        const tasksDiv = document.getElementById('tasksList');
+        tasksDiv.innerHTML = '';
+        if (user.tasks.length === 0) tasksDiv.innerHTML = '<p>暂无任务</p>';
+        else user.tasks.forEach(t => {
+            tasksDiv.innerHTML += `<div class="task-item"><strong>${escapeHtml(t.taskTitle)}</strong> - 奖励:${t.rewardValue} 金币<br>接取:${new Date(t.acceptTime).toLocaleString()}<br>状态:${t.status === 'completed' ? '✅已完成' : '🔨进行中'} ${t.status !== 'completed' ? `<button onclick="completeTask('${t.taskId}')">完成</button>` : ''}</div>`;
+        });
+        // 个人主页
+        document.getElementById('personalMdEditor').value = user.personalMd || '# 我的主页';
+        document.getElementById('preview').innerHTML = await marked.parse(user.personalMd || '# 我的主页');
+    }
+
+    window.completeTask = async (taskId) => {
+        const res = await apiCall('/api/tasks/complete', 'POST', { taskId });
+        if (res.success) { alert(`获得 ${res.reward} 金币`); loadProfile(); }
+        else alert(res.error);
+    };
+    document.getElementById('savePersonalMd').onclick = async () => {
+        const content = document.getElementById('personalMdEditor').value;
+        const res = await apiCall('/api/update-personal-md', 'POST', { content });
+        if (res.success) { document.getElementById('preview').innerHTML = await marked.parse(content); alert('保存成功'); }
+    };
+    document.getElementById('giftBtn').onclick = async () => {
+        const toUsername = document.getElementById('giftTo').value.trim();
+        const amount = parseInt(document.getElementById('giftAmount').value);
+        const res = await apiCall('/api/gift', 'POST', { toUsername, amount });
+        if (res.success) { alert('赠送成功'); loadProfile(); }
+        else alert(res.error);
+    };
+    document.getElementById('exchangeBtn').onclick = async () => {
+        const account = document.getElementById('exchangeAccount').value.trim();
+        const webCoins = parseInt(document.getElementById('exchangeAmount').value);
+        const res = await apiCall('/api/exchange/request', 'POST', { account, webCoins });
+        if (res.success) { alert('申请已提交'); loadProfile(); }
+        else alert(res.error);
+    };
+    document.getElementById('changePwdBtn').onclick = async () => {
+        const oldPassword = document.getElementById('oldPwd').value;
+        const newPassword = document.getElementById('newPwd').value;
+        const confirm = document.getElementById('confirmPwd').value;
+        if (newPassword !== confirm) return alert('新密码不一致');
+        const res = await apiCall('/api/change-password', 'POST', { oldPassword, newPassword });
+        if (res.success) { alert('密码已修改，请重新登录'); location.href='login.html'; }
+        else alert(res.error);
+    };
+    document.getElementById('changeUsernameBtn').onclick = async () => {
+        const newUsername = document.getElementById('newUsername').value.trim();
+        const res = await apiCall('/api/change-username', 'POST', { newUsername });
+        if (res.success) { alert('用户名已修改，页面将刷新'); location.reload(); }
+        else alert(res.error);
+    };
+    function escapeHtml(str) { return str.replace(/[&<>]/g, m => m==='&'?'&amp;':m==='<'?'&lt;':'&gt;'); }
+    loadProfile();
+</script>
+</body>
+</html>

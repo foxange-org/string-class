@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>孙(string)教-新闻</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        ul.nav-menu {
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #333;
+        }
+        ul.nav-menu li { float: left; }
+        ul.nav-menu li a {
+            display: block;
+            color: white;
+            text-align: center;
+            padding: 14px 16px;
+            text-decoration: none;
+        }
+        ul.nav-menu li a:hover { background-color: #111; }
+        body { background: #f0f2f5; font-family: 'Segoe UI', sans-serif; }
+        .logo { text-align: center; margin: 20px 0; }
+        .logo img { max-width: 90%; }
+        .container {
+            max-width: 1000px;
+            margin: 30px auto;
+            background: white;
+            border: 1px solid #ccc;
+            padding: 20px;
+        }
+        #markdown-content {
+            background: #fafafa;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        footer { text-align: center; padding: 20px; color: #555; }
+    </style>
+</head>
+<body>
+<div class="logo"><img src="pngs/title.png" width="500" height="100"></div>
+<div id="global-nav"></div>
+
+<div class="container">
+    <h1>📰 所有新闻</h1>
+    <div id="markdown-content">加载中...</div>
+</div>
+<footer>© 2025 孙(string)教 | 共产主义精神</footer>
+
+<script src="menu.js"></script>
+<script>
+    async function loadNews() {
+        const container = document.getElementById('markdown-content');
+        try {
+            const res = await fetch('news/news.md');
+            if (!res.ok) throw new Error();
+            const content = await res.text();
+            container.innerHTML = await marked.parse(content);
+        } catch {
+            container.innerHTML = '<p style="color:red;">❌ 新闻加载失败</p>';
+        }
+    }
+    loadNews();
+</script>
+</body>
+</html>

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>孙教-任务大厅</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        ul.nav-menu { list-style:none; margin:0; padding:0; overflow:hidden; background-color:#333; }
+        ul.nav-menu li { float:left; }
+        ul.nav-menu li a { display:block; color:white; text-align:center; padding:14px 16px; text-decoration:none; }
+        ul.nav-menu li a:hover { background-color:#111; }
+        body { background:#f0f2f5; font-family:'Segoe UI',sans-serif; }
+        .logo { text-align:center; margin:20px 0; }
+        .logo img { max-width:90%; }
+        .container { max-width:1000px; margin:30px auto; background:white; border:1px solid #ccc; border-radius:8px; padding:20px; }
+        h1 { margin-bottom:20px; border-left:5px solid #e67e22; padding-left:15px; }
+        .task-list { display:flex; flex-direction:column; gap:15px; }
+        .task-card { background:#f9f9f9; border:1px solid #ddd; border-radius:8px; padding:15px; }
+        .task-title { font-size:1.2rem; font-weight:bold; }
+        .task-reward { color:#e67e22; font-weight:bold; margin:8px 0; }
+        .task-meta { color:#666; font-size:0.9rem; }
+        .task-deadline { color:#e74c3c; }
+        .task-btn { margin-top:10px; padding:8px 16px; background:#333; color:white; border:none; border-radius:4px; cursor:pointer; }
+        .task-btn:disabled { background:#999; cursor:not-allowed; }
+        .empty-tasks { text-align:center; padding:40px; color:#999; }
+        footer { text-align:center; padding:20px; color:#555; }
+    </style>
+</head>
+<body>
+<div class="logo"><img src="pngs/title.png" width="500" height="100"></div>
+<div id="global-nav"></div>
+<div class="container">
+    <h1>📋 任务大厅</h1>
+    <div id="taskList" class="task-list">加载中...</div>
+</div>
+<footer>© 2025 孙(string)教 | 完成任务获得金币</footer>
+<script src="menu.js"></script>
+<script>
+    let currentUser = null;
+    async function fetchCurrentUser() {
+        const res = await fetch('/api/me');
+        if (res.ok) currentUser = await res.json();
+        else currentUser = null;
+    }
+    async function loadTasks() {
+        await fetchCurrentUser();
+        const tasksRes = await fetch('/api/tasks');
+        const tasks = await tasksRes.json();
+        const userTasks = currentUser?.tasks || [];
+        const acceptedTitles = userTasks.map(t => t.taskTitle);
+        const now = new Date();
+        const available = tasks.filter(t => {
+            if (!t.active) return false;
+            if (new Date(t.deadline) < now) return false;
+            if (t.currentParticipants >= t.maxParticipants) return false;
+            if (acceptedTitles.includes(t.title)) return false;
+            return true;
+        });
+        const disabled = tasks.filter(t => {
+            if (!t.active) return false;
+            return (!available.includes(t));
+        });
+        const container = document.getElementById('taskList');
+        if (available.length === 0 && disabled.length === 0) {
+            container.innerHTML = '<div class="empty-tasks">✨ 暂无任务 ✨</div>';
+            return;
+        }
+        let html = '';
+        if (available.length) {
+            html += '<h3>🔥 可接取的任务</h3>';
+            available.forEach(t => {
+                html += `
+                    <div class="task-card">
+                        <div class="task-title">${escapeHtml(t.title)}</div>
+                        <div class="task-reward">💰 奖励: ${t.reward} 金币</div>
+                        <div class="task-meta">👥 剩余名额: ${t.maxParticipants - t.currentParticipants} / ${t.maxParticipants}</div>
+                        <div class="task-meta task-deadline">⏰ 截止: ${new Date(t.deadline).toLocaleDateString()}</div>
+                        <button class="task-btn" onclick="acceptTask('${t.id}')">📌 接取任务</button>
+                    </div>
+                `;
+            });
+        }
+        if (disabled.length) {
+            html += '<h3>⛔ 不可接取的任务</h3>';
+            disabled.forEach(t => {
+                let reason = '';
+                if (new Date(t.deadline) < now) reason = '已过期';
+                else if (t.currentParticipants >= t.maxParticipants) reason = '已满员';
+                else if (acceptedTitles.includes(t.title)) reason = '您已接取';
+                else reason = '已禁用';
+                html += `
+                    <div class="task-card" style="opacity:0.7;">
+                        <div class="task-title">${escapeHtml(t.title)}</div>
+                        <div class="task-reward">💰 奖励: ${t.reward} 金币</div>
+                        <div class="task-meta">👥 剩余名额: ${t.maxParticipants - t.currentParticipants} / ${t.maxParticipants}</div>
+                        <div class="task-meta task-deadline">⏰ 截止: ${new Date(t.deadline).toLocaleDateString()}</div>
+                        <div class="task-meta" style="color:red;">❌ ${reason}</div>
+                        <button class="task-btn" disabled>无法接取</button>
+                    </div>
+                `;
+            });
+        }
+        container.innerHTML = html;
+    }
+    window.acceptTask = async (taskId) => {
+        if (!currentUser) { alert('请先登录'); location.href='login.html'; return; }
+        const res = await fetch('/api/tasks/accept', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ taskId })
+        });
+        const data = await res.json();
+        if (data.success) { alert('接取成功'); loadTasks(); }
+        else alert(data.error);
+    };
+    function escapeHtml(str) { return str.replace(/[&<>]/g, m => m==='&'?'&amp;':m==='<'?'&lt;':'&gt;'); }
+    loadTasks();
+</script>
+</body>
+</html>

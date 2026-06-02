@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>孙教-排行榜</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        ul.nav-menu { list-style:none; margin:0; padding:0; overflow:hidden; background-color:#333; }
+        ul.nav-menu li { float:left; }
+        ul.nav-menu li a { display:block; color:white; text-align:center; padding:14px 16px; text-decoration:none; }
+        ul.nav-menu li a:hover { background-color:#111; }
+        body { background:#f0f2f5; font-family:'Segoe UI',sans-serif; }
+        .logo { text-align:center; margin:20px 0; }
+        .logo img { max-width:90%; }
+        .container { max-width:1000px; margin:30px auto; background:white; border:1px solid #ccc; padding:20px; border-radius:8px; }
+        .tabs { display:flex; border-bottom:2px solid #ccc; margin-bottom:20px; gap:5px; }
+        .tab { padding:10px 20px; background:#f0f0f0; border:none; cursor:pointer; border-radius:8px 8px 0 0; }
+        .tab.active { background:#333; color:white; }
+        .tab-content { display:none; }
+        .tab-content.active { display:block; }
+        table { width:100%; border-collapse:collapse; margin-top:15px; }
+        th, td { padding:10px; text-align:left; border-bottom:1px solid #ddd; }
+        th { background:#f2f2f2; }
+        footer { text-align:center; padding:20px; color:#555; }
+    </style>
+</head>
+<body>
+<div class="logo"><img src="pngs/title.png" width="500" height="100"></div>
+<div id="global-nav"></div>
+<div class="container">
+    <div class="tabs">
+        <button class="tab active" data-tab="total">🏆 总榜</button>
+        <button class="tab" data-tab="coins">💰 金币榜</button>
+        <button class="tab" data-tab="completion">📊 完成度榜</button>
+    </div>
+    <div id="total" class="tab-content active"><table id="totalTable"><thead><tr><th>排名</th><th>用户名</th><th>标签</th><th>综合分</th></tr></thead><tbody></tbody></table></div>
+    <div id="coins" class="tab-content"><table id="coinsTable"><thead><tr><th>排名</th><th>用户名</th><th>标签</th><th>金币</th></tr></thead><tbody></tbody></table></div>
+    <div id="completion" class="tab-content"><table id="completionTable"><thead><tr><th>排名</th><th>用户名</th><th>标签</th><th>完成度</th></tr></thead><tbody></tbody></table></div>
+</div>
+<footer>© 孙教排行榜</footer>
+<script src="menu.js"></script>
+<script>
+    async function fetchRankData() {
+        const res = await fetch('/api/rank');
+        return await res.json();
+    }
+    async function renderTotal() {
+        const data = await fetchRankData();
+        const list = data.map(u => ({ username: u.username, tag: u.tag, score: (u.coins || 0) + ((u.completed || 0) / (u.accepted || 1)) * 100 }));
+        list.sort((a,b) => b.score - a.score);
+        const tbody = document.querySelector('#totalTable tbody');
+        tbody.innerHTML = '';
+        list.forEach((item, idx) => {
+            tbody.innerHTML += `<tr><td>${idx+1}</td><td>${item.username}</td><td>${item.tag}</td><td>${item.score.toFixed(2)}</td></tr>`;
+        });
+    }
+    async function renderCoins() {
+        const data = await fetchRankData();
+        data.sort((a,b) => (b.coins||0) - (a.coins||0));
+        const tbody = document.querySelector('#coinsTable tbody');
+        tbody.innerHTML = '';
+        data.forEach((u, idx) => {
+            tbody.innerHTML += `<tr><td>${idx+1}</td><td>${u.username}</td><td>${u.tag}</td><td>${u.coins||0}</td></tr>`;
+        });
+    }
+    async function renderCompletion() {
+        const data = await fetchRankData();
+        const list = data.map(u => ({ username: u.username, tag: u.tag, rate: (u.accepted === 0 ? 0 : (u.completed / u.accepted) * 100) }));
+        list.sort((a,b) => b.rate - a.rate);
+        const tbody = document.querySelector('#completionTable tbody');
+        tbody.innerHTML = '';
+        list.forEach((item, idx) => {
+            tbody.innerHTML += `<tr><td>${idx+1}</td><td>${item.username}</td><td>${item.tag}</td><td>${item.rate.toFixed(1)}%</td></tr>`;
+        });
+    }
+    const tabs = document.querySelectorAll('.tab');
+    const contents = document.querySelectorAll('.tab-content');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const target = tab.dataset.tab;
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            contents.forEach(c => c.classList.remove('active'));
+            document.getElementById(target).classList.add('active');
+            if (target === 'total') renderTotal();
+            if (target === 'coins') renderCoins();
+            if (target === 'completion') renderCompletion();
+        });
+    });
+    renderTotal(); renderCoins(); renderCompletion();
+</script>
+</body>
+</html>

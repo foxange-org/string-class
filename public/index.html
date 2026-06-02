@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>孙(string)教总部</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        ul.nav-menu {
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #333;
+        }
+        ul.nav-menu li {
+            float: left;
+        }
+        ul.nav-menu li a {
+            display: block;
+            color: white;
+            text-align: center;
+            padding: 14px 16px;
+            text-decoration: none;
+        }
+        ul.nav-menu li a:hover {
+            background-color: #111;
+        }
+        body {
+            background: #f0f2f5;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        .logo {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .logo img {
+            max-width: 90%;
+            height: auto;
+        }
+        .container {
+            margin: 20px;
+            padding: 15px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+        }
+        .markdown-box {
+            background: white;
+            padding: 15px;
+            line-height: 1.6;
+        }
+        a {
+            color: #0066cc;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="logo">
+        <img src="pngs/title.png" alt="孙教总部" width="500" height="100">
+    </div>
+    <div id="global-nav"></div>
+
+    <!-- 最新消息 -->
+    <div class="container">
+        <h1>📢 最新消息!</h1>
+        <div id="markdown-content" class="markdown-box">加载中...</div>
+    </div>
+
+    <!-- 教主宣言 (index.md) -->
+    <div class="container">
+        <div id="markdown-content_index" class="markdown-box">加载中...</div>
+    </div>
+
+    <!-- 区块：index_about_gtn.md -->
+    <div class="container">
+        <div id="markdown-gtn" class="markdown-box">加载中...</div>
+    </div>
+
+    <!-- 区块：index_about_class.md -->
+    <div class="container">
+        <div id="markdown-class" class="markdown-box">加载中...</div>
+    </div>
+
+    <!-- 区块：about2.md -->
+    <div class="container">
+        <div id="markdown-about2" class="markdown-box">加载中...</div>
+    </div>
+
+    <footer>© 2025 孙(string)教 | 共产主义精神 | 跟党前进</footer>
+
+    <script src="menu.js"></script>
+    <script>
+        // 直接 fetch 静态 Markdown 文件并渲染（不使用 localStorage 缓存）
+        async function loadMarkdown(containerId, filePath) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            try {
+                const res = await fetch(filePath);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const content = await res.text();
+                const html = await marked.parse(content);
+                container.innerHTML = html;
+            } catch (error) {
+                console.error(`加载 ${filePath} 失败:`, error);
+                container.innerHTML = `<p style="color:red;">❌ 内容加载失败: ${filePath}</p>`;
+            }
+        }
+
+        // 加载各个区块
+        loadMarkdown('markdown-content', 'news/max_new.md');
+        loadMarkdown('markdown-content_index', 'index.md');
+        loadMarkdown('markdown-gtn', 'index_about_gtn.md');
+        loadMarkdown('markdown-class', 'index_about_class.md');
+        loadMarkdown('markdown-about2', 'about2.md');
+    </script>
+</body>
+</html>

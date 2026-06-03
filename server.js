@@ -1,12 +1,11 @@
 const express = require('express');
 const session = require('express-session');
-const bcrypt = require('bcryptjs');  // 替换为 bcryptjs
+const bcrypt = require('bcryptjs');
 const fs = require('fs').promises;
 const path = require('path');
 const marked = require('marked');
 
 const app = express();
-const PORT = 3000;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -392,8 +391,8 @@ app.post('/api/logout', (req, res) => {
     res.json({ success: true });
 });
 
-app.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
-});
+// 修正：统一使用 PORT 变量
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
